@@ -8,6 +8,7 @@ The code for the hierarchical clustering comes from AmyXZhang, who authored the 
 ### Required
 1. A csv file of the data to be clustered
 2. A destination directory for data to be written
+
 ### Optional
 3. Minimum cluster size (defaults to 0.5% of the data set or 3 whichever is larger)
 4. Minimum reachability distance for maxima (significantMin)
