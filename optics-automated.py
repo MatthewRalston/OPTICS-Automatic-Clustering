@@ -18,6 +18,7 @@ import csv, sys, getopt
 import numpy as np
 import matplotlib.pyplot as plt
 import hcluster as H
+import sklearn as sk
 from itertools import *
 from operator import itemgetter
 
@@ -117,7 +118,7 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod):
     #printTree(rootNode, 0)
 
     #graph reachability plot and tree
-    #graphTree(rootNode, RPlot,outdir)
+    graphTree(rootNode, RPlot,outdir)
 
     #array of the TreeNode objects, position in the array is the TreeNode's level in the tree
     #array = getArray(rootNode, 0, [0])
@@ -128,9 +129,16 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod):
 
     clusters=cycle(''.join(str(c) for c in range(1,len(leaves)+1)))
     final_list = []
+    features=[] 
+    order=[]
     for clust, c in zip(leaves,clusters):
         for x in range(clust.start,clust.end):
             final_list.append(list(RPoints[x][0])+[c])
+            order.append(c)
+            features.append(list(RPoints[x]))
+
+    indices=internal_indices(features,order,distMethod)
+
 
     with open(outdir+"optics-clustering.csv",'w') as csvfile:
         output = csv.writer(csvfile,delimiter=',')
@@ -138,8 +146,15 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod):
             for data in entries:
                 if row[:-1] == data[1:]:
                     output.writerow([data[0],row[0][-1]])
-
-
+    # print column wise averages
+    summary=np.mean(indices,axis=1)
+    summary[2]=np.array(indices).min(axis=1)[2]
+    print ','.join(["%.5f" % n for n in summary])
+    with open(outdir+"clustering-metrics.csv",'w') as csvfile:
+        output = csv.writeer(csvfile,delimiter=',')
+        for i in order:
+            indices[i].insert(0,i)
+            output.writerow(indices[i])
 
 
 def contains_sublist(lst,sublst):
@@ -353,7 +368,7 @@ def graphTree(root, RPlot, outdir):
     plt.savefig(outdir+'Reachability_plot.png', dpi=None, facecolor='w', edgecolor='w',
       orientation='portrait', papertype=None, format=None,
      transparent=False, bbox_inches=None, pad_inches=0.1)
-    plt.show()
+    #plt.show()
 
             
 def graphNode(node, num, ax):
@@ -459,6 +474,9 @@ def optics(x, k, distMethod = 'euclidean'):
     RD[0] = 0 #we set this point to 0 as it does not get overwritten
     return RD, CD, order
 
+
+
+
 def euclid(i, x):
     """euclidean(i, x) -> euclidean distance between x and y"""
     y = np.zeros_like(x)
@@ -469,6 +487,60 @@ def euclid(i, x):
 
     d = (x-y)**2
     return np.sqrt(np.sum(d, axis = 1))
+
+# --------- Silhouette, Davies-Bouldin, Dunn -------
+
+def internal_indices(features,orderings,distance="euclidean"):
+    clusters={}
+    indices=[]
+    for i,x in enumerate(orderings):
+        if x in clusters.keys():
+            clusters[x].append(features[i])
+        else:
+            clusters[x]=[features[i]]
+    # 'A'
+    centroids={}
+    # 'B'
+    avgdissim={}
+    for i in clusters.keys():
+        centroids[i]=np.mean(clusters[i],axis=0)
+        sumdist=0
+        for x in clusters[i]:
+            sumdist+=eval("dis."+distance+"(x,centroids[i])")
+        avgdissim[i]=sumdist/len(clusters[i])
+    maxB=max(avgdissim)
+    # 'D'
+    dists={}
+    for c,i in enumerate(clusters.keys()):
+        # 'C'
+        i_to_centroid=[]
+        for j in np.delete(clusters.keys(),c):
+            sumdist=0
+            for x in clusters[i]:
+                sumdist+=eval("dis."+distance+"(x,centroids[j])")
+            i_to_centroid.append(sumdist/len(clusters[i]))
+            a,b=sorted([i,j])
+            dists[str(a)+str(b)]=eval("dis."+distance+"(centroids[i],centroids[j])")
+        a,b=avgdissim[i],min(i_to_centroid)
+        # average Silhouette of cluster
+        silhouette=(b-a)/max([a,b])
+        # Davies-Bouldin coefficient
+        #    the average over all clusters would be the davies bouldin index
+        temp=dict(avgdissim)
+        del temp[i]
+        d,e=max(temp.iteritems(),key=operator.itemgetter(1))
+        a,b=sorted([i,d])
+        dbc=(avgdissim[i]+e)/dists[str(a)+str(b)]
+        # Dunn coefficient
+        #     the minimum over all clusters would be the Dunn index
+        temp=[s for s in dists.keys() if str(i) in s]
+        temp={k: dists[k] for k in temp}
+        di=min(temp.values())/maxB
+        # add indices to the list
+        a,b=min(temp.values()),max(temp.values())
+        indices.append([silhouette,dbc,di,avgdissim[i],a,b])
+    return indices
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -16,9 +16,23 @@ Modifications include the original standard deviation cluster level criteria (se
 5. Maxima ratio (Maximum allowed ratio of the maxima's reachability distance / average reachability distance of bordering clusters) [0.75]
 6. Distance method, see http://hcluster.damianeads.com/cluster.html
 
+## Returns
+Prints an array of summary statistics
+* Avg. Silhouette coefficient
+* Davies-Bouldin index
+* Dunn index
+* Avg. dissimilarity
+* Avg. minimum intercluster distance
+* Avg. maximum intercluster distance
+
 ## Outputs
 1. optics-clustering.csv -- a csv list of the data points and their respective cluster
-2. Reachability_plot.png -- an alternative to a hierarchical clustering tree
+2. clustering-metrics.csv -- an ordered csv list of metrics, per cluster 'i'
+   * Silhouette coefficient = avg<sub>i</sub> {(b<sub>i</sub> - a<sub>i</sub>)/max(a<sub>i</sub>,b<sub>i</sub>)}, where a is the average intracluster dissimilary, and b is the minimum inter-cluster dissimilarity.
+   * Daview-Bouldin 'coefficient' = (a<sub>i</sub> + a<sub>j</sub>)/d(i,j), where a<sub>x</sub> is the average intracluster dissimilarity of x, j refers to the farthest cluster from j, and d(i,j) is the distance between their centroids.
+   * Dunn 'coefficient' = min( d(i,j) ) / a<sub>k</sub>, where d(i,j) is intercluster distance and a<sub>k</sub> is the maximum intracluster dissimilarity.
+3. Reachability_plot.png -- an alternative to a hierarchical clustering tree
+
 
 ## Dependencies
 This python script requires numpy, matplotlib, and hcluster.
