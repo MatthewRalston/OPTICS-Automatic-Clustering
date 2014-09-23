@@ -32,14 +32,15 @@ def main(argv):
     minReach = False
     maxRatio = False
     distMethod = False
+    sigSample = False
     try:
-        opts, args = getopt.getopt(argv,"hi:o:n:r:m:d:",["input_file=","output_dir=","min_pts=","min_reach=","maxima_ratio=","dist_method="])
+        opts, args = getopt.getopt(argv,"hi:o:n:r:m:d:s:",["input_file=","output_dir=","min_pts=","min_reach=","maxima_ratio=","dist_method=","sig_sample="])
     except getopt.GetoptError:
-        print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method>'
+        print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method> -s <significance sample>'
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method>'
+            print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method> -s <significance sample>'
             sys.exit()
         elif opt in ("-i","--input_file"):
             ifile = arg
@@ -55,10 +56,12 @@ def main(argv):
             maxRatio = checkfloat(arg)
         elif opt in ("-d","--dist_method"):
             distMethod = arg
+        elif opt in ("-s","--sig_sample"):
+            sigSample = arg
         else:
-            print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method>'
+            print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method> -s <significance sample>'
             sys.exit(2)
-    autoclust(ifile,odir,mpts,minReach,maxRatio,distMethod)
+    autoclust(ifile,odir,mpts,minReach,maxRatio,distMethod,sigSample)
 
 def checkint(arg):
     try:
@@ -74,7 +77,7 @@ def checkfloat(arg):
         print "-r and -m should be a floating point number"
         sys.exit(2)
 
-def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod):
+def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod,sigSample):
     entries=[]
     # Load some data, a NxM dataset of N objects, M variables
     with open(infile,'r') as csvfile:
@@ -105,14 +108,14 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod):
         RPoints.append([X[item]]) #points in their order determined by OPTICS
 
     #hierarchically cluster the data
-    if  maxRatio and minReach:
-        rootNode = automaticCluster(RPlot, RPoints, minpts, minReach=minReach, maximaRatio=maxRatio)
-    elif maxRatio:
-        rootNode = automaticCluster(RPlot, RPoints, minpts, maximaRatio=maxRatio)
-    elif minReach:
-        rootNode = automaticCluster(RPlot, RPoints, minpts, minReach=minReach)
-    else:
-        rootNode = automaticCluster(RPlot, RPoints, minpts)
+    cmd="automaticCluster(RPlot, RPoints, minpts"
+    if maxRatio:
+        cmd+=", maximaRatio=maxRatio"
+    if minReach:
+        cmd+=", minReach=minReach"
+    if sigSample:
+        cmd+=", sigSample=sigSample"
+    rootNode = eval(cmd+")")
 
     #print Tree (DFS)
     #printTree(rootNode, 0)
@@ -196,7 +199,7 @@ def findLocalMaxima(RPlot, RPoints, nghsize):
     
 
 
-def clusterTree(node, parentNode, localMaximaPoints, RPlot, RPoints, min_cluster_size, minReach, maximaRatio):
+def clusterTree(node, parentNode, localMaximaPoints, RPlot, RPoints, min_cluster_size, minReach, maximaRatio, sigSample):
     #node is a node or the root of the tree in the first call
     #parentNode is parent node of N or None if node is root of the tree
     #localMaximaPoints is list of local maxima points sorted in descending order of reachability
@@ -230,14 +233,14 @@ def clusterTree(node, parentNode, localMaximaPoints, RPlot, RPoints, min_cluster
     if RPlot[s] < minReach:
         node.assignSplitPoint(-1)
         #if splitpoint is not significant, ignore this split and continue
-        clusterTree(node,parentNode, localMaximaPoints, RPlot, RPoints, min_cluster_size, minReach, maximaRatio)
+        clusterTree(node,parentNode, localMaximaPoints, RPlot, RPoints, min_cluster_size, minReach, maximaRatio,sigSample)
         return
         
         
     #only check a certain ratio of points in the child nodes formed to the left and right of the maxima
-    checkRatio = .8
-    checkValue1 = int(np.round(checkRatio*len(Node1.points)))
-    checkValue2 = int(np.round(checkRatio*len(Node2.points)))
+
+    checkValue1 = int(np.round(sigSample*len(Node1.points)))
+    checkValue2 = int(np.round(sigSample*len(Node2.points)))
     if checkValue2 == 0:
         checkValue2 = 1
     avgReachValue1 = float(np.average(RPlot[(Node1.end - checkValue1):Node1.end]))
@@ -252,16 +255,15 @@ def clusterTree(node, parentNode, localMaximaPoints, RPlot, RPoints, min_cluster
 
     #the maximum ratio we allow of average height of clusters on the right and left to the local maxima in question
 	
-    if float(avgReachValue1 / float(RPlot[s])) >= maximaRatio and float(avgReachValue2 / float(RPlot[s])) >= maximaRatio:
+    
+    if float(avgReachValue1 / float(RPlot[s])) <= maximaRatio:
         Nodelist.remove((Node1,LocalMax1))
+    if float(avgReachValue2 / float(RPlot[s])) <= maximaRatio:
         Nodelist.remove((Node2,LocalMax2))
+    if float(avgReachValue1 / float(RPlot[s])) <= maximaRatio and float(avgReachValue2 / float(RPlot[s])) <= maximaRatio:
         node.assignSplitPoint(-1)
-        clusterTree(node,parentNode,localMaximaPoints,RPlot,RPoints,min_cluster_size,minReach,maximaRatio)
+        clusterTree(node,parentNode,localMaximaPoints,RPlot,RPoints,min_cluster_size,minReach,maximaRatio,sigSample)
         return
-    elif float(avgReachValue1 / float(RPlot[s])) >= maximaRatio:
-        Nodelist.remove((Node1,LocalMax1))
-    elif float(avgReachValue2 / float(RPlot[s])) >= maximaRatio:
-        Nodelist.remove((Node2,LocalMax2))
 
  
     #remove clusters that are too small
@@ -298,10 +300,10 @@ def clusterTree(node, parentNode, localMaximaPoints, RPlot, RPoints, min_cluster
     for nl in Nodelist:
         if bypassNode == 1:
             parentNode.addChild(nl[0])
-            clusterTree(nl[0], parentNode, nl[1], RPlot, RPoints, min_cluster_size,minReach,maximaRatio)
+            clusterTree(nl[0], parentNode, nl[1], RPlot, RPoints, min_cluster_size,minReach,maximaRatio,sigSample)
         else:
             node.addChild(nl[0])
-            clusterTree(nl[0], node, nl[1], RPlot, RPoints, min_cluster_size,minReach,maximaRatio)
+            clusterTree(nl[0], node, nl[1], RPlot, RPoints, min_cluster_size,minReach,maximaRatio,sigSample)
         
 
 def printTree(node, num):
@@ -376,7 +378,7 @@ def graphNode(node, num, ax):
     for item in node.children:
         graphNode(item, num - .4, ax)
 
-def automaticCluster(RPlot, RPoints, minpts, minReach=0.003, maximaRatio=0.75):
+def automaticCluster(RPlot, RPoints, minpts, minReach=0.003, maximaRatio=0.75sigSample=0.75):
 
 
     min_neighborhood_size = 2
@@ -390,7 +392,7 @@ def automaticCluster(RPlot, RPoints, minpts, minReach=0.003, maximaRatio=0.75):
     localMaximaPoints = findLocalMaxima(RPlot, RPoints, nghsize)
     
     rootNode = TreeNode(RPoints, 0, len(RPoints), None)
-    clusterTree(rootNode, None, localMaximaPoints, RPlot, RPoints, minpts,minReach,maximaRatio)
+    clusterTree(rootNode, None, localMaximaPoints, RPlot, RPoints, minpts,minReach,maximaRatio,sigSample)
     return rootNode
 
 

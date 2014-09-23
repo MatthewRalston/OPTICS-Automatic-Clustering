@@ -13,8 +13,9 @@ Modifications include the original standard deviation cluster level criteria (se
 ### Optional
 3. Minimum cluster size [0.5% of the data set or 3, whichever is larger]
 4. Minimum reachability distance for maxima [0.003]
-5. Maxima ratio (Maximum allowed ratio of the maxima's reachability distance / average reachability distance of bordering clusters) [0.75]
+5. Maxima ratio (Mainimum accepted ratio of the average reachability distance of bordering clusters / maxima's reachability distance ) [0.75]
 6. [Distance method](http://docs.scipy.org/doc/scipy/reference/spatial.distance.html), used to calculate all distances and dissimilarities
+7. The percentage of the middle of the cluster to sample to calculate the average reachability distance [0.75]
 
 ## Returns
 Prints an array of summary statistics, calculated from output below.
