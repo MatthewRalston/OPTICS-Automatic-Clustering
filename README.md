@@ -14,23 +14,29 @@ Modifications include the original standard deviation cluster level criteria (se
 3. Minimum cluster size [0.5% of the data set or 3, whichever is larger]
 4. Minimum reachability distance for maxima [0.003]
 5. Maxima ratio (Maximum allowed ratio of the maxima's reachability distance / average reachability distance of bordering clusters) [0.75]
-6. Distance method, see http://hcluster.damianeads.com/cluster.html
+6. [Distance method](http://docs.scipy.org/doc/scipy/reference/spatial.distance.html), used to calculate all distances and dissimilarities
 
 ## Returns
-Prints an array of summary statistics
-* Avg. Silhouette coefficient
-* Davies-Bouldin index
-* Dunn index
-* Avg. dissimilarity
+Prints an array of summary statistics, calculated from output below.
+* [Avg. Silhouette coefficient](http://en.wikipedia.org/wiki/Silhouette_(clustering))
+* [Davies-Bouldin index](http://en.wikipedia.org/wiki/Davies%E2%80%93Bouldin_index)
+* [Dunn index](http://en.wikipedia.org/wiki/Dunn_index)
+* Avg. intracluster dissimilarity
 * Avg. minimum intercluster distance
 * Avg. maximum intercluster distance
 
 ## Outputs
 1. optics-clustering.csv -- a csv list of the data points and their respective cluster
 2. clustering-metrics.csv -- an ordered csv list of metrics, per cluster 'i'
-   * Silhouette coefficient = avg<sub>i</sub> {(b<sub>i</sub> - a<sub>i</sub>)/max(a<sub>i</sub>,b<sub>i</sub>)}, where a is the average intracluster dissimilary, and b is the minimum inter-cluster dissimilarity.
-   * Daview-Bouldin 'coefficient' = (a<sub>i</sub> + a<sub>j</sub>)/d(i,j), where a<sub>x</sub> is the average intracluster dissimilarity of x, j refers to the farthest cluster from j, and d(i,j) is the distance between their centroids.
-   * Dunn 'coefficient' = min( d(i,j) ) / a<sub>k</sub>, where d(i,j) is intercluster distance and a<sub>k</sub> is the maximum intracluster dissimilarity.
+   * Silhouette coefficient = *avg { (b<sub>i</sub> - a<sub>i</sub>) / max(a<sub>i</sub>,b<sub>i</sub>) }*,
+   where a is the average intracluster dissimilary, and b is the minimum inter-cluster dissimilarity.
+   * Davies-Bouldin 'coefficient' = *(a<sub>i</sub> + a<sub>j</sub>)/d(i,j)*,
+   where a<sub>x</sub> is the average intracluster dissimilarity of x, j refers to the farthest cluster from j, and d(i,j) is the distance between their centroids.
+   * Dunn 'coefficient' = *min( d(i,j) ) / a<sub>k</sub>*,
+   where d(i,j) is intercluster distance and a<sub>k</sub> is the maximum intracluster dissimilarity.
+   * Intracluster dissimilarity
+   * Minimum intercluster distance
+   * Maximum intercluster distance
 3. Reachability_plot.png -- an alternative to a hierarchical clustering tree
 
 
