@@ -29,11 +29,14 @@ Prints an array of summary statistics, calculated from output below.
 1. optics-clustering.csv -- a csv list of the data points and their respective cluster
 2. clustering-metrics.csv -- an ordered csv list of metrics, per cluster 'i'
    * Silhouette coefficient = *avg { (b<sub>i</sub> - a<sub>i</sub>) / max(a<sub>i</sub>,b<sub>i</sub>) }*,
-   where a is the average intracluster dissimilary, and b is the minimum inter-cluster dissimilarity.
+
+	where a is the average intracluster dissimilary, and b is the minimum inter-cluster dissimilarity.
    * Davies-Bouldin 'coefficient' = *(a<sub>i</sub> + a<sub>j</sub>)/d(i,j)*,
-   where a<sub>x</sub> is the average intracluster dissimilarity of x, j refers to the farthest cluster from j, and d(i,j) is the distance between their centroids.
+
+	where a<sub>x</sub> is the average intracluster dissimilarity of x, j refers to the farthest cluster from j, and d(i,j) is the distance between their centroids.
    * Dunn 'coefficient' = *min( d(i,j) ) / a<sub>k</sub>*,
-   where d(i,j) is intercluster distance and a<sub>k</sub> is the maximum intracluster dissimilarity.
+
+	where d(i,j) is intercluster distance and a<sub>k</sub> is the maximum intracluster dissimilarity.
    * Intracluster dissimilarity
    * Minimum intercluster distance
    * Maximum intercluster distance
