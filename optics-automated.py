@@ -19,8 +19,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import hcluster as H
 import sklearn as sk
+from scipy.spatial import distance as dis
+import scipy as sp
+import operator
 from itertools import *
-from operator import itemgetter
 
 
 
@@ -57,11 +59,11 @@ def main(argv):
         elif opt in ("-d","--dist_method"):
             distMethod = arg
         elif opt in ("-s","--sig_sample"):
-            sigSample = arg
+            sigSample = checkfloat(arg)
         else:
             print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method> -s <significance sample>'
             sys.exit(2)
-    autoclust(ifile,odir,mpts,minReach,maxRatio,distMethod,sigSample)
+    autoclust(ifile,odir,mpts,minReach,maxRatio,sigSample,distMethod)
 
 def checkint(arg):
     try:
@@ -77,7 +79,7 @@ def checkfloat(arg):
         print "-r and -m should be a floating point number"
         sys.exit(2)
 
-def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod,sigSample):
+def autoclust(infile,outdir,minpts,minReach,maxRatio,sigSample,distMethod):
     entries=[]
     # Load some data, a NxM dataset of N objects, M variables
     with open(infile,'r') as csvfile:
@@ -98,6 +100,7 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod,sigSample):
     if distMethod:
         RD, CD, order = optics(X,minpts,distMethod)
     else:
+        distMethod="euclidean"
         RD, CD, order = optics(X,minpts)
 
     RPlot = []
@@ -121,7 +124,7 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod,sigSample):
     #printTree(rootNode, 0)
 
     #graph reachability plot and tree
-    graphTree(rootNode, RPlot,outdir)
+    #graphTree(rootNode, RPlot,outdir)
 
     #array of the TreeNode objects, position in the array is the TreeNode's level in the tree
     #array = getArray(rootNode, 0, [0])
@@ -132,15 +135,15 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod,sigSample):
 
     clusters=cycle(''.join(str(c) for c in range(1,len(leaves)+1)))
     final_list = []
-    features=[] 
+    features=[]
     order=[]
     for clust, c in zip(leaves,clusters):
         for x in range(clust.start,clust.end):
             final_list.append(list(RPoints[x][0])+[c])
             order.append(c)
-            features.append(list(RPoints[x]))
+            features.append(np.array(RPoints[x]))
 
-    indices=internal_indices(features,order,distMethod)
+    indices=internal_indices(np.array(features).astype(float),map(int,order),distMethod)
 
 
     with open(outdir+"optics-clustering.csv",'w') as csvfile:
@@ -150,14 +153,16 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,distMethod,sigSample):
                 if row[:-1] == data[1:]:
                     output.writerow([data[0],row[0][-1]])
     # print column wise averages
-    summary=np.mean(indices,axis=1)
-    summary[2]=np.array(indices).min(axis=1)[2]
+    summary=np.mean(np.array(indices),axis=0)
+    summary[2]=np.array(indices).min(axis=0)[2]
     print ','.join(["%.5f" % n for n in summary])
+
+
     with open(outdir+"clustering-metrics.csv",'w') as csvfile:
-        output = csv.writeer(csvfile,delimiter=',')
-        for i in order:
-            indices[i].insert(0,i)
-            output.writerow(indices[i])
+        output = csv.writer(csvfile,delimiter=',')
+        for i in range(0,len(indices)):
+            indices[int(i)].insert(0,i)
+            output.writerow(indices[int(i)])
 
 
 def contains_sublist(lst,sublst):
@@ -238,7 +243,6 @@ def clusterTree(node, parentNode, localMaximaPoints, RPlot, RPoints, min_cluster
         
         
     #only check a certain ratio of points in the child nodes formed to the left and right of the maxima
-
     checkValue1 = int(np.round(sigSample*len(Node1.points)))
     checkValue2 = int(np.round(sigSample*len(Node2.points)))
     if checkValue2 == 0:
@@ -254,13 +258,13 @@ def clusterTree(node, parentNode, localMaximaPoints, RPlot, RPoints, min_cluster
     '''
 
     #the maximum ratio we allow of average height of clusters on the right and left to the local maxima in question
-	
-    
-    if float(avgReachValue1 / float(RPlot[s])) <= maximaRatio:
+    leftFail = float(avgReachValue1 / float(RPlot[s])) <= maximaRatio
+    rightFail = float(avgReachValue2 / float(RPlot[s])) <= maximaRatio
+    if leftFail:
         Nodelist.remove((Node1,LocalMax1))
-    if float(avgReachValue2 / float(RPlot[s])) <= maximaRatio:
+    if rightFail:
         Nodelist.remove((Node2,LocalMax2))
-    if float(avgReachValue1 / float(RPlot[s])) <= maximaRatio and float(avgReachValue2 / float(RPlot[s])) <= maximaRatio:
+    if leftFail and rightFail:
         node.assignSplitPoint(-1)
         clusterTree(node,parentNode,localMaximaPoints,RPlot,RPoints,min_cluster_size,minReach,maximaRatio,sigSample)
         return
@@ -378,8 +382,7 @@ def graphNode(node, num, ax):
     for item in node.children:
         graphNode(item, num - .4, ax)
 
-def automaticCluster(RPlot, RPoints, minpts, minReach=0.003, maximaRatio=0.75sigSample=0.75):
-
+def automaticCluster(RPlot, RPoints, minpts, minReach=0.003, maximaRatio=0.75,sigSample=0.75):
 
     min_neighborhood_size = 2
     min_maxima_ratio = 0.001    
