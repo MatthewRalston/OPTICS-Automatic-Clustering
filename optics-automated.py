@@ -33,16 +33,18 @@ def main(argv):
     mpts = False
     minReach = False
     maxRatio = False
+    clustMethod = False
     distMethod = False
     sigSample = False
+    usage = 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -c <clustering distance method> -d <distance method> -s <significance sample>'
     try:
-        opts, args = getopt.getopt(argv,"hi:o:n:r:m:d:s:",["input_file=","output_dir=","min_pts=","min_reach=","maxima_ratio=","dist_method=","sig_sample="])
+        opts, args = getopt.getopt(argv,"hi:o:n:r:m:c:d:s:",["input_file=","output_dir=","min_pts=","min_reach=","maxima_ratio=","cluster_method=","dist_method=","sig_sample="])
     except getopt.GetoptError:
-        print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method> -s <significance sample>'
+        print usage
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method> -s <significance sample>'
+            print usage
             sys.exit()
         elif opt in ("-i","--input_file"):
             ifile = arg
@@ -56,14 +58,16 @@ def main(argv):
             minReach = checkfloat(arg)
         elif opt in ("-m","--maxima_ratio"):
             maxRatio = checkfloat(arg)
+        elif opt in ("-c","--cluster_method"):
+            clustMethod = arg
         elif opt in ("-d","--dist_method"):
             distMethod = arg
         elif opt in ("-s","--sig_sample"):
             sigSample = checkfloat(arg)
         else:
-            print 'optics-automated.py -i <input file> -o <output directory> -n <minimum pts> -r <minimum reachability distance> -m <maxima ratio> -d <distance method> -s <significance sample>'
+            print usage
             sys.exit(2)
-    autoclust(ifile,odir,mpts,minReach,maxRatio,sigSample,distMethod)
+    autoclust(ifile,odir,mpts,minReach,maxRatio,sigSample,distMethod,clustMethod)
 
 def checkint(arg):
     try:
@@ -79,7 +83,7 @@ def checkfloat(arg):
         print "-r and -m should be a floating point number"
         sys.exit(2)
 
-def autoclust(infile,outdir,minpts,minReach,maxRatio,sigSample,distMethod):
+def autoclust(infile,outdir,minpts,minReach,maxRatio,sigSample,distMethod,clustMethod):
     entries=[]
     # Load some data, a NxM dataset of N objects, M variables
     with open(infile,'r') as csvfile:
@@ -97,11 +101,11 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,sigSample,distMethod):
             minpts = 3
     
     #run the OPTICS algorithm on the points, using a smoothing value (0 = no smoothing)
-    if distMethod:
-        RD, CD, order = optics(X,minpts,distMethod)
-    else:
-        distMethod="euclidean"
-        RD, CD, order = optics(X,minpts)
+
+
+    RD, CD, order = optics(X,minpts,clustMethod) if clustMethod else RD,CD,order=optics(X,minpts,"euclidean")
+
+    
 
     RPlot = []
     RPoints = []
@@ -124,7 +128,7 @@ def autoclust(infile,outdir,minpts,minReach,maxRatio,sigSample,distMethod):
     #printTree(rootNode, 0)
 
     #graph reachability plot and tree
-    #graphTree(rootNode, RPlot,outdir)
+    graphTree(rootNode, RPlot,outdir)
 
     #array of the TreeNode objects, position in the array is the TreeNode's level in the tree
     #array = getArray(rootNode, 0, [0])
@@ -503,6 +507,12 @@ def internal_indices(features,orderings,distance="euclidean"):
             clusters[x].append(features[i])
         else:
             clusters[x]=[features[i]]
+    if distance == "seuclidean":
+        cmd = "dis.seuclidean(Q,R,variances)"
+    elif distance == "mahalanobis":
+        cmd = "dis.mahalanobis(Q,R,inv)"
+    else:
+        cmd = "dis."+distance+"(Q,R)"
     # 'A'
     centroids={}
     # 'B'
@@ -510,8 +520,12 @@ def internal_indices(features,orderings,distance="euclidean"):
     for i in clusters.keys():
         centroids[i]=np.mean(clusters[i],axis=0)
         sumdist=0
+        variances=np.var(clusters[i],axis=0) if distance = "seuclidean"
+        inv = np.inv(np.cov(clusters[i])) if distance = "mahalanobis"
         for x in clusters[i]:
-            sumdist+=eval("dis."+distance+"(x,centroids[i])")
+            third=third+"variances)" if distance="seuclidean"
+            third=
+            sumdist+=eval(cmd.replace('Q','x').replace('R','clusters[i]'))
         avgdissim[i]=sumdist/len(clusters[i])
     maxB=max(avgdissim)
     # 'D'
@@ -521,11 +535,13 @@ def internal_indices(features,orderings,distance="euclidean"):
         i_to_centroid=[]
         for j in np.delete(clusters.keys(),c):
             sumdist=0
+            variances=np.var(clusters[j],axis=0) if distance = "seuclidean"
+            inv = np.inv(np.cov(clusters[j])) if distance = "mahalanobis"
             for x in clusters[i]:
-                sumdist+=eval("dis."+distance+"(x,centroids[j])")
+                sumdist+=eval(cmd.replace('Q','x').replace('R','centroids[j]'))
             i_to_centroid.append(sumdist/len(clusters[i]))
             a,b=sorted([i,j])
-            dists[str(a)+str(b)]=eval("dis."+distance+"(centroids[i],centroids[j])")
+            dists[str(a)+str(b)]=eval(cmd.replace('Q','centroids[i]').replace('R','centroids[j]'))
         a,b=avgdissim[i],min(i_to_centroid)
         # average Silhouette of cluster
         silhouette=(b-a)/max([a,b])
